@@ -1,10 +1,11 @@
-## UPCOMING RELEASE
+## 0.0.1+3
 
-* Added \mathbb{}
+* Added `\hat` implementation that works for small letters.
+* Added `\mathbb`.
 
 ## 0.0.1+2
 
-* Fix `\frac` line positioning.
+* Fixed `\frac` line positioning.
 
 ## 0.0.1+1
 
