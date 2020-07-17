@@ -149,10 +149,11 @@ abstract class RenderNode<P extends NodeParentData> extends RenderBox
         'Render nodes need to set renderSize in configure.');
 
     super.size = Size(
-        min(constraints.biggest.width,
-            max(constraints.smallest.width, renderSize.width)),
-        min(constraints.biggest.height,
-            max(constraints.smallest.height, renderSize.height)));
+      min(constraints.biggest.width,
+          max(constraints.smallest.width, _renderSize.width)),
+      min(constraints.biggest.height,
+          max(constraints.smallest.height, _renderSize.height)),
+    );
   }
 
   PaintingContext _context;
@@ -212,6 +213,7 @@ class NodeParentData extends ContainerBoxParentData<RenderNode> {
 /// Renders the node tree, inserting a repaint boundary between the nodes
 /// and the rest of the widget tree and also tells the compositor to cache it.
 class RenderTree extends RenderBox with RenderObjectWithChildMixin<RenderNode> {
+  /// Constructs [RenderTree].
   RenderTree(CaTeXContext context)
       : assert(context != null),
         _context = context;
@@ -274,6 +276,43 @@ class RenderTree extends RenderBox with RenderObjectWithChildMixin<RenderNode> {
       'note that the overflow is still rendered, just clipped. Thus, having '
       'an overflow is not optimal for performance.)';
 
+  Size _treeSize;
+
+  /// Does a mock layout pass and returns the size the tree would need to be
+  /// painted without clipping.
+  Size _computeIntrinsicDimensions() {
+    /// Not considering the width as the only effect of that would be throwing
+    /// the exception about clipping. That exception will then be thrown again
+    /// during the actual layout phase - so we can just ignore the constraints
+    /// here as they will not alter the _treeSize.
+    layout(const BoxConstraints());
+    return _treeSize;
+  }
+
+  @override
+  double computeMinIntrinsicWidth(double height) {
+    assert(height >= 0);
+    return _computeIntrinsicDimensions().width;
+  }
+
+  @override
+  double computeMaxIntrinsicWidth(double height) {
+    assert(height >= 0);
+    return _computeIntrinsicDimensions().width;
+  }
+
+  @override
+  double computeMinIntrinsicHeight(double width) {
+    assert(width >= 0);
+    return _computeIntrinsicDimensions().height;
+  }
+
+  @override
+  double computeMaxIntrinsicHeight(double width) {
+    assert(width >= 0);
+    return _computeIntrinsicDimensions().height;
+  }
+
   @override
   void performLayout() {
     child.parentData.offset = Offset.zero;
@@ -283,41 +322,41 @@ class RenderTree extends RenderBox with RenderObjectWithChildMixin<RenderNode> {
     // tree turns out to take up too much space, we will simply clip it
     // and inform the developer that there is not enough space.
     child.layout(constraints);
-    final treeSize = child.renderSize;
+    _treeSize = child.renderSize;
 
     size = Size(
-      min(constraints.maxWidth, max(constraints.minWidth, treeSize.width)),
-      min(constraints.maxHeight, max(constraints.minHeight, treeSize.height)),
+      min(constraints.maxWidth, max(constraints.minWidth, _treeSize.width)),
+      min(constraints.maxHeight, max(constraints.minHeight, _treeSize.height)),
     );
 
     // Throwing the exceptions here will make sure that the developer can
     // see that the rendered output overflows and still render the result.
     // This means that effectively these exceptions do not interrupt rendering
     // at all. The output is simply clipped.
-    if (treeSize.width > constraints.maxWidth &&
-        treeSize.height > constraints.maxHeight) {
+    if (_treeSize.width > constraints.maxWidth &&
+        _treeSize.height > constraints.maxHeight) {
       throw RenderingException(
         reason: 'Tree exceeds both the width constraint (actual: '
-            '${treeSize.width}; constraint: ${constraints.maxWidth}) '
-            'and the height constraint (actual: ${treeSize.height}; '
+            '${_treeSize.width}; constraint: ${constraints.maxWidth}) '
+            'and the height constraint (actual: ${_treeSize.height}; '
             'constraint: ${constraints.maxHeight}); '
             'the output will be clipped - consider providing '
             'larger width and height constraints $_commonLayoutExceptionSuffix',
         input: child.context.input,
       );
     }
-    if (treeSize.width > constraints.maxWidth) {
+    if (_treeSize.width > constraints.maxWidth) {
       throw RenderingException(
         reason: 'Tree exceeds the width constraint (actual: '
-            '${treeSize.width}; constraint: ${constraints.maxWidth}); '
+            '${_treeSize.width}; constraint: ${constraints.maxWidth}); '
             'the output will be clipped - consider providing a larger '
             'width constraint $_commonLayoutExceptionSuffix',
         input: child.context.input,
       );
-    } else if (treeSize.height > constraints.maxHeight) {
+    } else if (_treeSize.height > constraints.maxHeight) {
       throw RenderingException(
         reason: 'Tree exceeds the height constraint '
-            '(actual: ${treeSize.height}; constraint: '
+            '(actual: ${_treeSize.height}; constraint: '
             '${constraints.maxHeight}); the output will be clipped - consider '
             'providing a larger height constraint '
             '$_commonLayoutExceptionSuffix',
